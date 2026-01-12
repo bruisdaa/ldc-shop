@@ -37,17 +37,24 @@ interface HomeContentProps {
 export function HomeContent({ products, announcement, visitorCount, categories: categoryConfig, pendingOrders }: HomeContentProps) {
     const { t } = useI18n()
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-    const [searchTerm, setSearchTerm] = useState("")
     const [sortKey, setSortKey] = useState<string>("default")
 
     // Extract unique categories
     const categories = useMemo(() => {
-        if (categoryConfig && categoryConfig.length) {
-            return [...categoryConfig].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.name.localeCompare(b.name))
-                .map(c => c.name)
-        }
-        const uniqueCategories = new Set(products.map(p => p.category).filter(Boolean) as string[])
-        return Array.from(uniqueCategories).sort()
+        const productCategories = new Set(products.map(p => p.category).filter(Boolean) as string[])
+        const configCategories = categoryConfig || []
+
+        // Start with configured categories to preserve their order
+        const orderedNames = configCategories
+            .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+            .map(c => c.name)
+
+        // Add any product categories that aren't in the config
+        const extraCategories = Array.from(productCategories)
+            .filter(c => !configCategories.some(config => config.name === c))
+            .sort()
+
+        return [...orderedNames, ...extraCategories]
     }, [categoryConfig, products])
 
     // Filter products
@@ -57,15 +64,6 @@ export function HomeContent({ products, announcement, visitorCount, categories: 
         // Category filter
         if (selectedCategory) {
             result = result.filter(p => p.category === selectedCategory)
-        }
-
-        // Search filter
-        if (searchTerm) {
-            const lowerTerm = searchTerm.toLowerCase()
-            result = result.filter(p =>
-                p.name.toLowerCase().includes(lowerTerm) ||
-                (p.description && p.description.toLowerCase().includes(lowerTerm))
-            )
         }
 
         const sorted = [...result]
@@ -87,7 +85,7 @@ export function HomeContent({ products, announcement, visitorCount, categories: 
         }
 
         return sorted
-    }, [products, selectedCategory, searchTerm, sortKey])
+    }, [products, selectedCategory, sortKey])
 
     return (
         <main className="container py-8 md:py-16">
@@ -146,24 +144,6 @@ export function HomeContent({ products, announcement, visitorCount, categories: 
 
                 {/* Top Toolbar: Search & Filter Pills */}
                 <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-card/50 p-1 rounded-xl">
-                    {/* Search Bar */}
-                    <div className="relative w-full md:w-72 shrink-0">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <Input
-                            placeholder={t('common.searchPlaceholder')}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 w-full bg-background border-border/50 focus:bg-background transition-all"
-                        />
-                    </div>
 
                     {/* Horizontal Category Pills */}
                     <div className="flex-1 w-full overflow-x-auto no-scrollbar pb-2 md:pb-0">
